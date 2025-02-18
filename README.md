@@ -4,12 +4,12 @@ Exploring componentize-dotnet via various examples from [James Sturtevant](https
 
 ## Background Reading
 
-- [Simplifying components for .NET/C# developers with componentize-dotnet](https://bytecodealliance.org/articles/simplifying-components-for-dotnet-developers-with-componentize-dotnet)
-- [Distributing WebAssembly components using OCI registries](https://opensource.microsoft.com/blog/2024/09/25/distributing-webassembly-components-using-oci-registries/)
-- [componentize-dotnet](https://github.com/bytecodealliance/componentize-dotnet)
-- [csharp-components-demos](https://github.com/jsturtevant/csharp-components-demos)
-- [Exploring C# Wasm Components - James Sturtevant, Microsoft](https://www.youtube.com/watch?v=cwWb-bE3c4o)
-- [Contain Yourself: Wasm and the OCI Spec - Taylor Thomas, Cosmonic & James Sturtevant, Microsoft](https://www.youtube.com/watch?v=Y8ZDBOR_2Ms)
+- 📄 [Simplifying components for .NET/C# developers with componentize-dotnet](https://bytecodealliance.org/articles/simplifying-components-for-dotnet-developers-with-componentize-dotnet)
+- 📄 [Distributing WebAssembly components using OCI registries](https://opensource.microsoft.com/blog/2024/09/25/distributing-webassembly-components-using-oci-registries/)
+- 🗂️ [componentize-dotnet](https://github.com/bytecodealliance/componentize-dotnet)
+- 🗂️ [csharp-components-demos](https://github.com/jsturtevant/csharp-components-demos)
+- 📺 [Exploring C# Wasm Components - James Sturtevant, Microsoft](https://www.youtube.com/watch?v=cwWb-bE3c4o)
+- 📺 [Contain Yourself: Wasm and the OCI Spec - Taylor Thomas, Cosmonic & James Sturtevant, Microsoft](https://www.youtube.com/watch?v=Y8ZDBOR_2Ms)
 
 ## Pre-requisites
 
