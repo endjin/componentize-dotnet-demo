@@ -8,6 +8,8 @@ Exploring componentize-dotnet
 
 ## Hello World Demo
 
+Shows how to compile a simple hello world application to WASM
+
 ```bash
 PS:> cd hello-world
 PS:> dotnet restore
@@ -25,6 +27,8 @@ Hello, World!
 ```
 
 ## wasi-http-server demo
+
+Shows how reference a WebAssembly Interface Type (WIT) artifact in an OCI registry. See `wasi-http-server.csproj` for the details.
 
 ```bash
 PS:> cd wasi-http
