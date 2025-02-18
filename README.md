@@ -1,5 +1,14 @@
 # componentize-dotnet-demo
-Exploring componentize-dotnet
+
+Exploring componentize-dotnet via various examples from [James Sturtevant](https://github.com/jsturtevant) and [Eric Gregory](https://github.com/ericgregory).
+
+## Background Reading
+
+- [Simplifying components for .NET/C# developers with componentize-dotnet](https://bytecodealliance.org/articles/simplifying-components-for-dotnet-developers-with-componentize-dotnet)
+- [componentize-dotnet](https://github.com/bytecodealliance/componentize-dotnet)
+- [csharp-components-demos](https://github.com/jsturtevant/csharp-components-demos)
+- [Exploring C# Wasm Components - James Sturtevant, Microsoft](https://www.youtube.com/watch?v=cwWb-bE3c4o)
+- [Contain Yourself: Wasm and the OCI Spec - Taylor Thomas, Cosmonic & James Sturtevant, Microsoft](https://www.youtube.com/watch?v=Y8ZDBOR_2Ms)
 
 ## Pre-requisites
 
