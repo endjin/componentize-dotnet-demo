@@ -551,7 +551,7 @@ package wasi:http@0.2.0 {
   }
 }
 ```
-<details>
+</details>
 
 To run, the console, you need to specify Wasmtime to use the the HTTP Interface when running the module:
 
