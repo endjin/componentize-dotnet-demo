@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <!-- Set these by default -->
+        <MSBuildEnableWorkloadResolver>false</MSBuildEnableWorkloadResolver>
+        <RuntimeIdentifier>wasi-wasm</RuntimeIdentifier>
+        <UseAppHost>false</UseAppHost>
+        <PublishTrimmed>true</PublishTrimmed>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <SelfContained>true</SelfContained>
+        <NoPackageAnalysis>true</NoPackageAnalysis>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="BytecodeAlliance.Componentize.DotNet.Wasm.SDK" Version="0.5.0-preview00008" />
+      <!--Windows -->
+      <PackageReference Include="runtime.win-x64.microsoft.dotnet.ilcompiler.llvm" Version="10.0.0-alpha.1.25075.1" />
+      <!--Linux-->
+      <!-- <PackageReference Include="runtime.linux-x64.microsoft.dotnet.ilcompiler.llvm" Version="10.0.0-alpha.1.25075.1" /> -->
+    </ItemGroup>
+
+</Project>
