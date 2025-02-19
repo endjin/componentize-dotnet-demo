@@ -45,14 +45,14 @@ Hello, World!
 Shows how reference a WebAssembly Interface Type (WIT) artifact in an OCI registry. See `wasi-http-server.csproj` for the details.
 
 ```bash
-PS:> cd wasi-http
+PS:> cd wasi-http-server
 PS:> dotnet build
 Restore complete (0.4s)
   hello succeeded (76.9s) → bin\Debug\net9.0\wasi-wasm\publish\
 
 Build succeeded in 79.7s
 
-PS:> wasmtime serve -S cli  .\bin\Debug\net9.0\wasi-wasm\native\wasi-http.wasm --addr 127.0.0.1:3000 
+PS:> wasmtime serve -S cli  .\bin\Debug\net9.0\wasi-wasm\native\wasi-http-server.wasm --addr 127.0.0.1:3000 
 ```
 
 In another terminal
