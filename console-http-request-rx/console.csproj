@@ -18,7 +18,6 @@
     <!--Windows -->
     <PackageReference Include="runtime.win-x64.microsoft.dotnet.ilcompiler.llvm" Version="10.0.0-alpha.1.25075.1" />
     <PackageReference Include="System.Reactive" Version="6.0.1" />
-    <PackageReference Include="Polly" Version="8.2.1" />
     <!--Linux-->
     <!-- <PackageReference Include="runtime.linux-x64.microsoft.dotnet.ilcompiler.llvm"  Version="10.0.0-alpha.1.25075.1" /> -->
   </ItemGroup>
