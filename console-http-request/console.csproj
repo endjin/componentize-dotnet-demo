@@ -7,10 +7,10 @@
     <Nullable>enable</Nullable>
     <RuntimeIdentifier>wasi-wasm</RuntimeIdentifier>
     <UseAppHost>false</UseAppHost>
+    <TrimMode>full</TrimMode>
     <PublishTrimmed>true</PublishTrimmed>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SelfContained>true</SelfContained>
-    <TrimMode>full</TrimMode>
   </PropertyGroup>
 
   <ItemGroup>
