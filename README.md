@@ -20,7 +20,7 @@ Exploring componentize-dotnet via various examples from [James Sturtevant](https
 - Install [WebAssembly Compositions (WAC)](https://github.com/bytecodealliance/wac) CLI - `cargo binstall wac-cli`
 - Install [wasm-tools](https://github.com/bytecodealliance/wasm-tools) - `cargo binstall wasm-tools`
 
-## Hello World Demo
+## Hello World demo
 
 Shows how to compile a simple hello world application to WASM
 
@@ -40,7 +40,7 @@ PS:> wasmtime bin\Debug\net9.0\wasi-wasm\native\hello.wasm
 Hello, World!
 ```
 
-## wasi-http-server Demo
+## wasi-http-server demo
 
 Shows how reference a WebAssembly Interface Type (WIT) artifact in an OCI registry. See `wasi-http-server.csproj` for the details.
 
@@ -62,7 +62,7 @@ PS:> Invoke-RestMethod http://127.0.0.1:3000/
 Hello, World!
 ```
 
-## console-http-request Demo
+## console-http-request demo
 
 Shows how to make an HTTP request while running in a WASI environment.
 
@@ -562,6 +562,25 @@ package wasi:http@0.2.0 {
 }
 ```
 </details>
+
+To run, the console, you need to specify Wasmtime to use the the HTTP Interface when running the module:
+
+```bash
+wasmtime run -S http .\dist\console.wasm
+```
+
+## console-http-request-rx demo
+
+Shows how to use Reactive Extensions for .NET to several make an HTTP requests while running in a WASI environment.
+
+```bash
+PS:> cd console-http-request-rx
+PS:> dotnet build
+Restore complete (0.4s)
+  console succeeded (3.5s) → bin\Debug\net9.0\wasi-wasm\publish\
+
+Build succeeded in 6.3s
+```
 
 To run, the console, you need to specify Wasmtime to use the the HTTP Interface when running the module:
 
