@@ -14,7 +14,7 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
     private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(1);
     private const int READ_SIZE = 4096;
     private const int MAX_RETRIES = 3;
-    private static readonly byte[] LineEndingBytes = [(byte)'\r', (byte)'\n'];
+    private static readonly byte[] LineEndingBytes = "\r\n"u8.ToArray();
 
     private (IStreams.InputStream Input, IStreams.OutputStream Output) streams;
     private readonly MemoryStream _buffer = new();
@@ -147,18 +147,16 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
         }
     }
 
-    private async IAsyncEnumerable<byte[]> ReadChunksAsync(
-        IStreams.InputStream inputStream,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    private async IAsyncEnumerable<byte[]> ReadChunksAsync(IStreams.InputStream inputStream, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        using var arrayPoolBuffer = new ByteArrayPoolBuffer(READ_SIZE);
+        using ByteArrayPoolBuffer arrayPoolBuffer = new(READ_SIZE);
         try
         {
-            var retryState = new RetryState();
+            RetryState retryState = new();
 
             while (!cancellationToken.IsCancellationRequested)
             {
-                var result = await TryReadDataAsync(inputStream, arrayPoolBuffer.Buffer, retryState, cancellationToken);
+                ReadResult result = await TryReadDataAsync(inputStream, arrayPoolBuffer.Buffer, retryState, cancellationToken);
 
                 if (result.ErrorMessage is not null)
                 {
@@ -190,37 +188,36 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
         public bool IncrementAndCheckLimit() => ++Count > MAX_RETRIES;
     }
 
-    private async Task<ReadResult> TryReadDataAsync(
-        IStreams.InputStream inputStream, 
-        byte[] buffer,
-        RetryState retryState,
-        CancellationToken cancellationToken)
+    private async Task<ReadResult> TryReadDataAsync(IStreams.InputStream inputStream, byte[] buffer, RetryState retryState, CancellationToken cancellationToken)
     {
         try
         {
             if (!this.Connected)
             {
-                return new(null, true, "Connection lost, stopping read");
+                return new ReadResult(null, true, "Connection lost, stopping read");
             }
 
             this.DataAvailable = true;
-            var data = inputStream.BlockingRead((ulong)buffer.Length);
+            byte[] data = inputStream.BlockingRead((ulong)buffer.Length);
             
             if (data.Length == 0)
             {
                 if (retryState.IncrementAndCheckLimit())
                 {
                     this.Connected = false;
-                    return new(null, true, "No data received after max retries");
+                    return new ReadResult(null, true, "No data received after max retries");
                 }
+
                 await Task.Delay(InitialRetryDelay, cancellationToken);
-                return new(null, false, "Waiting for more data...");
+                
+                return new ReadResult(null, false, "Waiting for more data...");
             }
             
             retryState.Reset();
-            var result = new byte[data.Length];
+            byte[] result = new byte[data.Length];
             Array.Copy(data, result, data.Length);
-            return new(result, false, null);
+
+            return new ReadResult(result, false, null);
         }
         catch (WitException e) when (e.Value.ToString()!.Contains("WOULD_BLOCK"))
         {
@@ -228,16 +225,17 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
             {
                 this.DataAvailable = false;
                 this.Connected = false;
-                return new(null, true, "Max retries exceeded while waiting for data");
+
+                return new ReadResult(null, true, "Max retries exceeded while waiting for data");
             }
 
             this.DataAvailable = true;
-            var delay = TimeSpan.FromMilliseconds(Math.Min(
+            TimeSpan delay = TimeSpan.FromMilliseconds(Math.Min(
                 InitialRetryDelay.TotalMilliseconds * (1 << retryState.Count),
                 MaxRetryDelay.TotalMilliseconds));
             
             await Task.Delay(delay, cancellationToken);
-            return new(null, false, $"Waiting for more data... (retry {retryState.Count})");
+            return new ReadResult(null, false, $"Waiting for more data... (retry {retryState.Count})");
         }
         catch (WitException e) when (e.Value is IStreams.StreamError)
         {
@@ -248,8 +246,7 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
             {
                 var remainingData = _buffer.ToArray();
                 _buffer.SetLength(0);
-                return new(remainingData, true, 
-                    $"Stream error: {e.Value}. Processing remaining {remainingData.Length} bytes before disconnecting");
+                return new ReadResult(remainingData, true, $"Stream error: {e.Value}. Processing remaining {remainingData.Length} bytes before disconnecting");
             }
             
             return new(null, true, $"Stream error: {e.Value}");
@@ -258,7 +255,7 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
         {
             this.DataAvailable = false;
             this.Connected = false;
-            return new(null, true, $"Unexpected error: {ex.Message}");
+            return new ReadResult(null, true, $"Unexpected error: {ex.Message}");
         }
     }
 
