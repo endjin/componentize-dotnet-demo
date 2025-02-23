@@ -10,12 +10,17 @@ using System.IO;
 
 public class WasiSocketNmeaStreamReader : INmeaStreamReader
 {
+    private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(1);
+    private const int READ_SIZE = 4096;
+    private const int MAX_RETRIES = 3;
+    private static readonly byte[] LineEndingBytes = [(byte)'\r', (byte)'\n'];
+
     private (IStreams.InputStream Input, IStreams.OutputStream Output) streams;
-    public bool DataAvailable { get; private set; }
-
-    public bool Connected { get; private set; }
-
     private readonly MemoryStream _buffer = new();
+    
+    public bool DataAvailable { get; private set; }
+    public bool Connected { get; private set; }
 
     public ValueTask DisposeAsync()
     {
@@ -142,72 +147,118 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
         }
     }
 
-    private async IAsyncEnumerable<byte[]> ReadChunksAsync(IStreams.InputStream inputStream, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    private async IAsyncEnumerable<byte[]> ReadChunksAsync(
+        IStreams.InputStream inputStream,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        const int READ_SIZE = 4096; // Increased buffer size
-        byte[] chunk = ArrayPool<byte>.Shared.Rent(READ_SIZE);
-        int retryCount = 0;
-        const int MAX_RETRIES = 3;
-
+        using var arrayPoolBuffer = new ByteArrayPoolBuffer(READ_SIZE);
         try
         {
+            var retryState = new RetryState();
+
             while (!cancellationToken.IsCancellationRequested)
             {
-                byte[] data;
-                try
+                var result = await TryReadDataAsync(inputStream, arrayPoolBuffer.Buffer, retryState, cancellationToken);
+
+                if (result.ErrorMessage is not null)
                 {
-                    this.DataAvailable = true;
-                    data = inputStream.BlockingRead((ulong)READ_SIZE);
-                    
-                    if (data.Length == 0)
-                    {
-                        if (++retryCount > MAX_RETRIES)
-                        {
-                            Console.WriteLine("No data received after max retries");
-                            yield break;
-                        }
-                        await Task.Delay(100, cancellationToken);
-                        continue;
-                    }
-                    
-                    retryCount = 0; // Reset retry counter on successful read
-                }
-                catch (WitException e) when (e.Value.ToString()!.Contains("WOULD_BLOCK"))
-                {
-                    if (++retryCount > MAX_RETRIES)
-                    {
-                        Console.WriteLine("Max retries exceeded while waiting for data");
-                        this.DataAvailable = false;
-                        yield break;
-                    }
-                    Console.WriteLine($"Waiting for more data... (retry {retryCount})");
-                    this.DataAvailable = true;
-                    await Task.Delay(100 * retryCount, cancellationToken); // Exponential backoff
-                    continue;
-                }
-                catch (WitException e) when (e.Value is IStreams.StreamError)
-                {
-                    Console.WriteLine($"Stream error: {e.Value}");
-                    this.DataAvailable = false;
-                    this.Connected = false;
-                    yield break;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Unexpected error: {ex.Message}");
-                    this.DataAvailable = false;
-                    this.Connected = false;
-                    yield break;
+                    Console.WriteLine(result.ErrorMessage);
                 }
 
-                var result = new byte[data.Length];
-                Array.Copy(data, result, data.Length);
-                yield return result;
+                if (result.Data is not null)
+                {
+                    yield return result.Data;
+                }
+
+                if (result.ShouldBreak)
+                {
+                    yield break;
+                }
             }
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(chunk);
+            // Dispose is called automatically due to using statement
+        }
+    }
+
+    // Moved retry state to a class to avoid ref parameter
+    private sealed class RetryState
+    {
+        public int Count { get; set; }
+        public void Reset() => Count = 0;
+        public bool IncrementAndCheckLimit() => ++Count > MAX_RETRIES;
+    }
+
+    private async Task<ReadResult> TryReadDataAsync(
+        IStreams.InputStream inputStream, 
+        byte[] buffer,
+        RetryState retryState,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!this.Connected)
+            {
+                return new(null, true, "Connection lost, stopping read");
+            }
+
+            this.DataAvailable = true;
+            var data = inputStream.BlockingRead((ulong)buffer.Length);
+            
+            if (data.Length == 0)
+            {
+                if (retryState.IncrementAndCheckLimit())
+                {
+                    this.Connected = false;
+                    return new(null, true, "No data received after max retries");
+                }
+                await Task.Delay(InitialRetryDelay, cancellationToken);
+                return new(null, false, "Waiting for more data...");
+            }
+            
+            retryState.Reset();
+            var result = new byte[data.Length];
+            Array.Copy(data, result, data.Length);
+            return new(result, false, null);
+        }
+        catch (WitException e) when (e.Value.ToString()!.Contains("WOULD_BLOCK"))
+        {
+            if (retryState.IncrementAndCheckLimit())
+            {
+                this.DataAvailable = false;
+                this.Connected = false;
+                return new(null, true, "Max retries exceeded while waiting for data");
+            }
+
+            this.DataAvailable = true;
+            var delay = TimeSpan.FromMilliseconds(Math.Min(
+                InitialRetryDelay.TotalMilliseconds * (1 << retryState.Count),
+                MaxRetryDelay.TotalMilliseconds));
+            
+            await Task.Delay(delay, cancellationToken);
+            return new(null, false, $"Waiting for more data... (retry {retryState.Count})");
+        }
+        catch (WitException e) when (e.Value is IStreams.StreamError)
+        {
+            this.DataAvailable = false;
+            this.Connected = false;
+            
+            if (_buffer.Length > 0)
+            {
+                var remainingData = _buffer.ToArray();
+                _buffer.SetLength(0);
+                return new(remainingData, true, 
+                    $"Stream error: {e.Value}. Processing remaining {remainingData.Length} bytes before disconnecting");
+            }
+            
+            return new(null, true, $"Stream error: {e.Value}");
+        }
+        catch (Exception ex)
+        {
+            this.DataAvailable = false;
+            this.Connected = false;
+            return new(null, true, $"Unexpected error: {ex.Message}");
         }
     }
 
@@ -219,4 +270,22 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
     private static IPv4Bytes GetIpTuple(IPAddress ip) => ip.GetAddressBytes() is [var a, var b, var c, var d]
         ? new IPv4Bytes(a, b, c, d)
         : throw new ArgumentException("Only IPv4 addresses are supported.");
+
+    private readonly record struct ReadResult(byte[]? Data, bool ShouldBreak, string? ErrorMessage);
+}
+
+// Change the generic ArrayPoolBuffer to a specific ByteArrayPoolBuffer
+file sealed class ByteArrayPoolBuffer : IDisposable
+{
+    public byte[] Buffer { get; }
+    
+    public ByteArrayPoolBuffer(int size)
+    {
+        Buffer = ArrayPool<byte>.Shared.Rent(size);
+    }
+
+    public void Dispose()
+    {
+        ArrayPool<byte>.Shared.Return(Buffer);
+    }
 }
