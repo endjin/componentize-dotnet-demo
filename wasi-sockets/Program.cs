@@ -5,36 +5,82 @@ using ImportsWorld.wit.imports.wasi.io.v0_2_0;
 using ImportsWorld.wit.imports.wasi.sockets.v0_2_0;
 using System.Runtime.CompilerServices;
 
-// wasmtime -S tcp=y,allow-ip-name-lookup=y,inherit-network=y,network-error-code=y .\dist\wasi-sockets.wasm 
-
 namespace WasiMainWrapper;
 
 public static class Program
 {
-    // A lightweight struct to hold IPv4 bytes.
-    private readonly record struct IPv4Bytes(byte A, byte B, byte C, byte D);
-
-    private static IPv4Bytes GetIpTuple(IPAddress ip)
+    private readonly record struct IPv4Bytes(byte A, byte B, byte C, byte D)
     {
-        byte[] bytes = ip.GetAddressBytes();
+        public void Deconstruct(out (byte, byte, byte, byte) tuple) => tuple = (A, B, C, D);
+    }
 
-        if (bytes.Length != 4)
+    private static IPv4Bytes GetIpTuple(IPAddress ip) => ip.GetAddressBytes() is [var a, var b, var c, var d]
+            ? new(a, b, c, d)
+            : throw new ArgumentException("Only IPv4 addresses are supported.");
+
+    private static async Task<(IStreams.InputStream Input, IStreams.OutputStream Output)> ConnectAsync(INetwork.Network network, INetwork.IpSocketAddress remoteAddress, CancellationToken cancellationToken = default)
+    {
+        Console.WriteLine("CreateTcpSocket");
+        ITcp.TcpSocket tcpSocket = TcpCreateSocketInterop.CreateTcpSocket(INetwork.IpAddressFamily.IPV4);
+
+        Console.WriteLine("Starting connection...");
+        tcpSocket.StartConnect(network, remoteAddress);
+
+        Console.WriteLine("Waiting for connection to complete...");
+        while (true)
         {
-            throw new ArgumentException("Only IPv4 addresses are supported.");
+            try
+            {
+                var streams = tcpSocket.FinishConnect();
+                Console.WriteLine("Connection established!");
+                return streams;
+            }
+            catch (WitException e) when (e.Value.ToString()!.Contains("WOULD_BLOCK"))
+            {
+                Console.WriteLine("Connection in progress, waiting...");
+                await Task.Delay(100, cancellationToken);
+            }
+        }
+    }
+
+    private static async Task<List<byte>> ReadResponseAsync(IStreams.InputStream inputStream, CancellationToken cancellationToken = default)
+    {
+        const ulong READ_SIZE = 1024UL;
+        List<byte> responseData = [];
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                byte[] chunk = inputStream.BlockingRead(READ_SIZE);
+                if (chunk is [] or null) break;
+
+                responseData.AddRange(chunk);
+                Console.WriteLine($"Received chunk with {chunk.Length} bytes");
+            }
+            catch (WitException e) when (e.Value.ToString()!.Contains("WOULD_BLOCK"))
+            {
+                Console.WriteLine("Waiting for more data...");
+                await Task.Delay(100, cancellationToken);
+            }
+            catch (WitException e) when (e.Value is IStreams.StreamError)
+            {
+                break;
+            }
         }
 
-        return new IPv4Bytes(bytes[0], bytes[1], bytes[2], bytes[3]);
+        return responseData;
     }
 
     public static async Task<int> MainAsync(string[] args)
     {
         try
         {
-            Console.WriteLine("Create INetwork.Ipv4SocketAddress");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-            // Deconstruct the new record struct when creating the IPv4 address
-            var (a, b, c, d) = GetIpTuple(IPAddress.Parse("96.7.128.175"));
-            INetwork.Ipv4SocketAddress address = new(80, (a, b, c, d));
+            Console.WriteLine("Create INetwork.Ipv4SocketAddress");
+            IPv4Bytes ipBytes = GetIpTuple(IPAddress.Parse("96.7.128.175"));
+            INetwork.Ipv4SocketAddress address = new(80, (ipBytes.A, ipBytes.B, ipBytes.C, ipBytes.D));
 
             Console.WriteLine("Create remoteAddress");
             INetwork.IpSocketAddress remoteAddress = INetwork.IpSocketAddress.Ipv4(address);
@@ -42,34 +88,10 @@ public static class Program
             Console.WriteLine("InstanceNetwork");
             INetwork.Network network = InstanceNetworkInterop.InstanceNetwork();
 
-            Console.WriteLine("CreateTcpSocket");
-            ITcp.TcpSocket tcpSocket = TcpCreateSocketInterop.CreateTcpSocket(INetwork.IpAddressFamily.IPV4);
+            (IStreams.InputStream Input, IStreams.OutputStream Output) streams = await ConnectAsync(network, remoteAddress, cts.Token);
+            
+            Console.WriteLine("Connected to the HTTP server via WASI sockets.");
 
-            Console.WriteLine("Starting connection...");
-            tcpSocket.StartConnect(network, remoteAddress);
-
-            Console.WriteLine("Waiting for connection to complete...");
-            bool connected = false;
-            (IStreams.InputStream inputStream, IStreams.OutputStream outputStream) streams = default;
-
-            while (!connected)
-            {
-                try
-                {
-                    streams = tcpSocket.FinishConnect();
-                    connected = true;
-                    Console.WriteLine("Connection established!");
-                }
-                catch (WitException e) when (e.Value.ToString()!.Contains("WOULD_BLOCK"))
-                {
-                    Console.WriteLine("Connection in progress, waiting...");
-                    await Task.Delay(100); // Avoid tight loop
-                }
-            }
-
-            Console.WriteLine("Connected to the server via WASI sockets.");
-
-            // Use a raw string literal to simplify a multi-line string.
             string request = 
                 "GET / HTTP/1.1\r\n" +
                 "Host: example.com\r\n" +
@@ -77,48 +99,24 @@ public static class Program
                 "Connection: close\r\n" +
                 "\r\n";
 
-            byte[] requestBytes = Encoding.ASCII.GetBytes(request);
-
             Console.WriteLine("Sending request:");
             Console.WriteLine(request);
-            streams.outputStream!.BlockingWriteAndFlush(requestBytes);
+            
+            streams.Output.BlockingWriteAndFlush(Encoding.ASCII.GetBytes(request));
 
-            // Read response with retry logic.
-            const ulong READ_SIZE = 1024UL;
-            List<byte> responseData = [];
+            List<byte> responseData = await ReadResponseAsync(streams.Input, cts.Token);
 
-            bool reading = true;
-            while (reading)
-            {
-                try
-                {
-                    byte[] chunk = streams.inputStream!.BlockingRead(READ_SIZE);
-                    if (chunk.Length == 0)
-                    {
-                        // End of stream: server closed connection.
-                        reading = false;
-                    }
-                    else
-                    {
-                        responseData.AddRange(chunk);
-                        Console.WriteLine($"Received chunk with {chunk.Length} bytes");
-                    }
-                }
-                catch (WitException e) when (e.Value.ToString()!.Contains("WOULD_BLOCK"))
-                {
-                    Console.WriteLine("Waiting for more data...");
-                    await Task.Delay(100); // Delay before retrying
-                }
-                catch (WitException e) when (e.Value is IStreams.StreamError)
-                {
-                    break;
-                }
-            }
-
-            // Convert accumulated bytes to a string.
-            string response = Encoding.ASCII.GetString(responseData.ToArray());
+            string response = Encoding.ASCII.GetString([.. responseData]);
+            
             Console.WriteLine($"Received data: {responseData.Count} bytes");
             Console.WriteLine(response);
+
+            return 0;
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("Operation timed out");
+            return 1;
         }
         catch (WitException e)
         {
@@ -130,8 +128,6 @@ public static class Program
             Console.WriteLine($"An error occurred: {ex.Message}");
             return 1;
         }
-
-        return 0;
     }
 
     public static int Main(string[] args)
