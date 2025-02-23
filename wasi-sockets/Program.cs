@@ -4,6 +4,7 @@ using ImportsWorld;
 using ImportsWorld.wit.imports.wasi.io.v0_2_0;
 using ImportsWorld.wit.imports.wasi.sockets.v0_2_0;
 using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 
 namespace WasiMainWrapper;
 
@@ -43,32 +44,42 @@ public static class Program
         }
     }
 
-    private static async Task<List<byte>> ReadResponseAsync(IStreams.InputStream inputStream, CancellationToken cancellationToken = default)
+    private static async IAsyncEnumerable<byte[]> ReadChunksAsync(IStreams.InputStream inputStream, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         const ulong READ_SIZE = 1024UL;
-        List<byte> responseData = [];
-
         while (!cancellationToken.IsCancellationRequested)
         {
+            byte[] chunk;
             try
             {
-                byte[] chunk = inputStream.BlockingRead(READ_SIZE);
-                if (chunk is [] or null) break;
-
-                responseData.AddRange(chunk);
-                Console.WriteLine($"Received chunk with {chunk.Length} bytes");
+                chunk = inputStream.BlockingRead(READ_SIZE);
             }
             catch (WitException e) when (e.Value.ToString()!.Contains("WOULD_BLOCK"))
             {
                 Console.WriteLine("Waiting for more data...");
                 await Task.Delay(100, cancellationToken);
+                continue;
             }
             catch (WitException e) when (e.Value is IStreams.StreamError)
             {
-                break;
+                yield break;
             }
-        }
 
+            if (chunk is [] or null)
+                yield break;
+
+            Console.WriteLine($"Received chunk with {chunk.Length} bytes");
+            yield return chunk;
+        }
+    }
+
+    private static async Task<List<byte>> ReadResponseAsync(IStreams.InputStream inputStream, CancellationToken cancellationToken = default)
+    {
+        List<byte> responseData = new();
+        await foreach (var chunk in ReadChunksAsync(inputStream, cancellationToken))
+        {
+            responseData.AddRange(chunk);
+        }
         return responseData;
     }
 
@@ -106,7 +117,7 @@ public static class Program
 
             List<byte> responseData = await ReadResponseAsync(streams.Input, cts.Token);
 
-            string response = Encoding.ASCII.GetString([.. responseData]);
+            string response = Encoding.ASCII.GetString(responseData.ToArray());
             
             Console.WriteLine($"Received data: {responseData.Count} bytes");
             Console.WriteLine(response);
