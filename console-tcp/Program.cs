@@ -1,24 +1,29 @@
 ﻿using Ais.Net;
-using Ais.Net.Models;
 using Ais.Net.Models.Abstractions;
-using Ais.Net.Receiver.Configuration;
 using Ais.Net.Receiver.Receiver;
-
-using System.Reactive; 
 using System.Reactive.Linq;
 
 using System.Runtime.CompilerServices;
 
-public static class WasiMainWrapper
+public static class Program
 {
     public static async Task<int> MainAsync(string[] args)
     {
-        INmeaReceiver receiver = new NetworkStreamNmeaReceiver(host: "153.44.253.27", port: 5631, retryAttemptLimit: 100, retryPeriodicity: TimeSpan.Parse("00:00:00:00.500"));
+        INmeaReceiver receiver = new NetworkStreamNmeaReceiver(new WasiSocketNmeaStreamReader(), host: "153.44.253.27", port: 5631, retryAttemptLimit: 100, retryPeriodicity: TimeSpan.Parse("00:00:00:00.500"));
+       
         ReceiverHost receiverHost = new (receiver);
 
         receiverHost.Messages.Subscribe(message => 
         {
             Console.WriteLine($"Received message: {message}");
+        });
+
+         receiverHost.Errors.Subscribe(error =>
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Error received: {error.Exception.Message}");
+            Console.WriteLine($"Bad line: {error.Line}");
+            Console.ResetColor();
         });
 
         IObservable<IGroupedObservable<uint, IAisMessage>> byVessel = receiverHost.Messages.GroupBy(m => m.Mmsi);
@@ -46,24 +51,6 @@ public static class WasiMainWrapper
         Console.WriteLine("Receiver started");
        
         return 0;
-    }
-
-    private static string ToHex(ShipTypeCategory shipTypeCategory)
-    {
-        return shipTypeCategory switch
-        {
-            ShipTypeCategory.NotAvailable => "#96F9A1",
-            ShipTypeCategory.Reserved => "#1C79F0",
-            ShipTypeCategory.WingInGround => "#F8BA97",
-            ShipTypeCategory.SpecialCategory3 => "#F8B594",
-            ShipTypeCategory.HighSpeedCraft => "#FFFF55",
-            ShipTypeCategory.SpecialCategory5 => "#43FFFF",
-            ShipTypeCategory.Passenger => "#203DB3",
-            ShipTypeCategory.Cargo => "#97F9A1",
-            ShipTypeCategory.Tanker => "#FF464E",
-            ShipTypeCategory.Other => "#56FFFF",
-            _ => "#96F9A1",
-        };
     }
 
     public static int Main(string[] args)
