@@ -604,5 +604,5 @@ Build succeeded in 4.6s
 To run, the console, you need to use Wasmtime's security features to enable the required network capabilities:
 
 ```bash
-wasmtime -S tcp=y,allow-ip-name-lookup=y,inherit-network=y,network-error-code=y .\dist\wasi-sockets.wasm
+wasmtime -S inherit-network=y .\dist\wasi-sockets.wasm
 ```
