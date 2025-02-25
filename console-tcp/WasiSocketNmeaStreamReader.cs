@@ -158,14 +158,14 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
             {
                 ReadResult result = await TryReadDataAsync(inputStream, arrayPoolBuffer.Buffer, retryState, cancellationToken);
 
-                if (result.ErrorMessage is not null)
+                if (result is { ErrorMessage: not null } msg)
                 {
-                    Console.WriteLine(result.ErrorMessage);
+                    Console.WriteLine(msg.ErrorMessage);
                 }
 
-                if (result.Data is not null)
+                if (result is { Data: not null } data)
                 {
-                    yield return result.Data;
+                    yield return data.Data;
                 }
 
                 if (result.ShouldBreak)
@@ -180,7 +180,6 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
         }
     }
 
-    // Moved retry state to a class to avoid ref parameter
     private sealed class RetryState
     {
         public int Count { get; set; }
@@ -193,31 +192,20 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
         try
         {
             if (!this.Connected)
-            {
                 return new ReadResult(null, true, "Connection lost, stopping read");
-            }
 
             this.DataAvailable = true;
             byte[] data = inputStream.BlockingRead((ulong)buffer.Length);
             
-            if (data.Length == 0)
+            return data.Length switch
             {
-                if (retryState.IncrementAndCheckLimit())
-                {
-                    this.Connected = false;
-                    return new ReadResult(null, true, "No data received after max retries");
-                }
-
-                await Task.Delay(InitialRetryDelay, cancellationToken);
+                0 when retryState.IncrementAndCheckLimit() => 
+                    new(null, true, "No data received after max retries") { Connected = false },
                 
-                return new ReadResult(null, false, "Waiting for more data...");
-            }
-            
-            retryState.Reset();
-            byte[] result = new byte[data.Length];
-            Array.Copy(data, result, data.Length);
-
-            return new ReadResult(result, false, null);
+                0 => await HandleWaitForMoreDataAsync(retryState, cancellationToken),
+                
+                _ => HandleSuccessfulRead(data, retryState)
+            };
         }
         catch (WitException e) when (e.Value.ToString()!.Contains("WOULD_BLOCK"))
         {
@@ -259,30 +247,38 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
         }
     }
 
+    private ReadResult HandleSuccessfulRead(byte[] data, RetryState retryState)
+    {
+        retryState.Reset();
+        byte[] result = [.. data]; // Using collection expression for copying
+        return new ReadResult(result, false, null);
+    }
+
+    private async Task<ReadResult> HandleWaitForMoreDataAsync(RetryState retryState, CancellationToken cancellationToken)
+    {
+        await Task.Delay(InitialRetryDelay, cancellationToken);
+        return new ReadResult(null, false, "Waiting for more data...");
+    }
+
     private readonly record struct IPv4Bytes(byte A, byte B, byte C, byte D)
     {
         public void Deconstruct(out (byte, byte, byte, byte) tuple) => tuple = (A, B, C, D);
     }
 
     private static IPv4Bytes GetIpTuple(IPAddress ip) => ip.GetAddressBytes() is [var a, var b, var c, var d]
-        ? new IPv4Bytes(a, b, c, d)
+        ? new(a, b, c, d)
         : throw new ArgumentException("Only IPv4 addresses are supported.");
 
-    private readonly record struct ReadResult(byte[]? Data, bool ShouldBreak, string? ErrorMessage);
+    private readonly record struct ReadResult(byte[]? Data, bool ShouldBreak, string? ErrorMessage)
+    {
+        public bool Connected { get; init; } = true;
+    }
 }
 
 // Change the generic ArrayPoolBuffer to a specific ByteArrayPoolBuffer
-file sealed class ByteArrayPoolBuffer : IDisposable
+file sealed class ByteArrayPoolBuffer(int size) : IDisposable
 {
-    public byte[] Buffer { get; }
-    
-    public ByteArrayPoolBuffer(int size)
-    {
-        Buffer = ArrayPool<byte>.Shared.Rent(size);
-    }
+    public byte[] Buffer { get; } = ArrayPool<byte>.Shared.Rent(size);
 
-    public void Dispose()
-    {
-        ArrayPool<byte>.Shared.Return(Buffer);
-    }
+    public void Dispose() => ArrayPool<byte>.Shared.Return(Buffer);
 }
