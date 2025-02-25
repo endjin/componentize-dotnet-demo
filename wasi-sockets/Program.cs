@@ -15,9 +15,11 @@ public static class Program
         public void Deconstruct(out (byte, byte, byte, byte) tuple) => tuple = (A, B, C, D);
     }
 
-    private static IPv4Bytes GetIpTuple(IPAddress ip) => ip.GetAddressBytes() is [var a, var b, var c, var d]
-            ? new(a, b, c, d)
-            : throw new ArgumentException("Only IPv4 addresses are supported.");
+    private static IPv4Bytes GetIpTuple(IPAddress ip) => ip.GetAddressBytes() switch
+    {
+        [var a, var b, var c, var d] => new(a, b, c, d),
+        _ => throw new ArgumentException("Only IPv4 addresses are supported.")
+    };
 
     private static async Task<(IStreams.InputStream Input, IStreams.OutputStream Output)> ConnectAsync(INetwork.Network network, INetwork.IpSocketAddress remoteAddress, CancellationToken cancellationToken = default)
     {

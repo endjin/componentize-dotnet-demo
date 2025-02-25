@@ -1,4 +1,7 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Net.Http;
+using System.Runtime.CompilerServices;
+
+namespace ConsoleHttpRequest;
 
 public static class WasiMainWrapper
 {
