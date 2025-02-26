@@ -19,7 +19,7 @@ public static class Program
             Console.WriteLine($"Received message: {message}");
         });
 
-         receiverHost.Errors.Subscribe(error =>
+        receiverHost.Errors.Subscribe(error =>
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"Error received: {error.Exception.Message}");
@@ -48,7 +48,9 @@ public static class Program
         CancellationTokenSource cts = new();
 
         Console.WriteLine("Start the receiver");
+        
         await receiverHost.StartAsync(cts.Token);
+        
         Console.WriteLine("Receiver started");
        
         return 0;
