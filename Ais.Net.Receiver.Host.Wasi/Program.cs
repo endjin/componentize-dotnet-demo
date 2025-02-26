@@ -1,9 +1,10 @@
-﻿using Ais.Net;
-using Ais.Net.Models.Abstractions;
+﻿using Ais.Net.Models.Abstractions;
 using Ais.Net.Receiver.Receiver;
-using System.Reactive.Linq;
 
+using System.Reactive.Linq;
 using System.Runtime.CompilerServices;
+
+namespace Ais.Net.Receiver.Host.Wasi;
 
 public static class Program
 {
@@ -28,12 +29,12 @@ public static class Program
 
         IObservable<IGroupedObservable<uint, IAisMessage>> byVessel = receiverHost.Messages.GroupBy(m => m.Mmsi);
 
-        var vesselNavigationWithNameStream =
+        IObservable<(uint mmsi, IVesselNavigation navigation, IVesselName name, ShipType ShipType)> vesselNavigationWithNameStream =
             from perVesselMessages in byVessel
             let vesselNavigationUpdates = perVesselMessages.OfType<IVesselNavigation>()
             let vesselNames = perVesselMessages.OfType<IVesselName>()
             let shipTypes = perVesselMessages.OfType<IShipType>()
-            let vesselLocationsWithNames = Observable.CombineLatest(vesselNavigationUpdates, vesselNames, shipTypes, (navigation, name, shipType) => (navigation, name, shipType))
+            let vesselLocationsWithNames = vesselNavigationUpdates.CombineLatest(vesselNames, shipTypes, (navigation, name, shipType) => (navigation, name, shipType))
             from vesselLocationAndName in vesselLocationsWithNames
             select (mmsi: perVesselMessages.Key, vesselLocationAndName.navigation, vesselLocationAndName.name, vesselLocationAndName.shipType.ShipType);
 

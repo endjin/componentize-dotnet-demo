@@ -606,3 +606,34 @@ To run, the console, you need to use Wasmtime's security features to enable the 
 ```bash
 wasmtime -S inherit-network=y .\dist\wasi-sockets.wasm
 ```
+
+## Ais.Net.Receiver.Host.Wasi demo
+
+This demo showcases `WasiSocketNmeaStreamReader`, a WebAssembly System Interface (WASI) implementation that:
+
+- Implements the `INmeaStreamReader` interface for AIS data processing
+- Serves as a WebAssembly-compatible replacement for the standard `TcpClientNmeaStreamReader` from the [Ais.Net.Receiver](https://github.com/ais-dotnet/Ais.Net.Receiver) library
+- Connects to the Norwegian Coastal Administration's TCP endpoint to receive maritime vessel tracking data
+- Processes raw AIS AIVDM/AIVDO sentences (standardized maritime vessel tracking messages)
+
+Technical Benefits:
+
+- Allows AIS data processing in WebAssembly environments
+- Demonstrates how network-dependent .NET libraries can be adapted for WASI
+- Shows practical use of the WASI sockets API with real-world data sources
+- The data stream covers vessel movements approximately 40-60 nautical miles from the Norwegian coastline, collected from over 50 coastal base stations.
+
+```bash
+PS:> cd .\Ais.Net.Receiver.Host.Wasi\
+PS:>dotnet build
+Restore complete (1.0s)
+  Ais.Net.Receiver.Host.Wasi succeeded (9.2s) → bin\Debug\net9.0\wasi-wasm\publish\
+
+Build succeeded in 16.0s
+```
+
+To run, the console, you need to use Wasmtime's security features to enable the required network capabilities:
+
+```bash
+wasmtime -S inherit-network=y .\dist\Ais.Net.Receiver.Host.Wasi.wasm
+```

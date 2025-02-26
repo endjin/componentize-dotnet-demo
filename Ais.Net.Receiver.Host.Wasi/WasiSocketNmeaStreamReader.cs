@@ -1,36 +1,28 @@
-﻿using System.Net;
-using System.Runtime.CompilerServices;
-using System.Text;
-using Ais.Net.Receiver.Receiver;
+﻿using Ais.Net.Receiver.Receiver;
+
 using ImportsWorld;
 using ImportsWorld.wit.imports.wasi.io.v0_2_1;
 using ImportsWorld.wit.imports.wasi.sockets.v0_2_1;
+
 using System.Buffers;
-using System.IO;
+using System.Net;
+using System.Runtime.CompilerServices;
+using System.Text;
+
+namespace Ais.Net.Receiver.Host.Wasi;
 
 public class WasiSocketNmeaStreamReader : INmeaStreamReader
 {
     private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(1);
-    private const int READ_SIZE = 4096;
-    private const int MAX_RETRIES = 3;
-    private static readonly byte[] LineEndingBytes = "\r\n"u8.ToArray();
-
+    private const int ReadSize = 4096;
+    private const int MaxRetries = 3;
     private (IStreams.InputStream Input, IStreams.OutputStream Output) streams;
-    private readonly MemoryStream _buffer = new();
+    private readonly MemoryStream buffer = new();
     
     public bool DataAvailable { get; private set; }
+
     public bool Connected { get; private set; }
-
-    public ValueTask DisposeAsync()
-    {
-        Console.WriteLine("DisposeAsync");
-
-        this.streams.Input.Dispose();
-        this.streams.Output.Dispose();
-
-        return ValueTask.CompletedTask;
-    }
 
     public async Task ConnectAsync(string host, int port, CancellationToken cancellationToken)
     {
@@ -74,13 +66,13 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
                 this.DataAvailable = true;
                 
                 // Write chunk to buffer
-                long originalPosition = _buffer.Position;
-                _buffer.Position = _buffer.Length;
-                _buffer.Write(chunk, 0, chunk.Length);
-                _buffer.Position = originalPosition;
+                long originalPosition = buffer.Position;
+                buffer.Position = buffer.Length;
+                buffer.Write(chunk, 0, chunk.Length);
+                buffer.Position = originalPosition;
 
                 // Look for complete line
-                byte[] bufferArray = _buffer.ToArray();
+                byte[] bufferArray = buffer.ToArray();
                 int newlineIndex = Array.IndexOf(bufferArray, (byte)'\n');
                 
                 if (newlineIndex >= 0)
@@ -96,12 +88,12 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
                     {
                         byte[] remaining = new byte[remainingLength];
                         Array.Copy(bufferArray, newlineIndex + 1, remaining, 0, remainingLength);
-                        _buffer.SetLength(0);
-                        _buffer.Write(remaining, 0, remaining.Length);
+                        buffer.SetLength(0);
+                        buffer.Write(remaining, 0, remaining.Length);
                     }
                     else
                     {
-                        _buffer.SetLength(0);
+                        buffer.SetLength(0);
                     }
 
                     return completeLine.TrimEnd('\r', '\n');
@@ -116,6 +108,16 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
         }
 
         return null;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Console.WriteLine("DisposeAsync");
+
+        this.streams.Input.Dispose();
+        this.streams.Output.Dispose();
+
+        return ValueTask.CompletedTask;
     }
 
     private async Task<(IStreams.InputStream Input, IStreams.OutputStream Output)> TcpSocketConnectAsync(INetwork.Network network, INetwork.IpSocketAddress remoteAddress, CancellationToken cancellationToken = default)
@@ -149,7 +151,7 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
 
     private async IAsyncEnumerable<byte[]> ReadChunksAsync(IStreams.InputStream inputStream, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        using ByteArrayPoolBuffer arrayPoolBuffer = new(READ_SIZE);
+        using ByteArrayPoolBuffer arrayPoolBuffer = new(ReadSize);
         try
         {
             RetryState retryState = new();
@@ -184,7 +186,7 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
     {
         public int Count { get; set; }
         public void Reset() => Count = 0;
-        public bool IncrementAndCheckLimit() => ++Count > MAX_RETRIES;
+        public bool IncrementAndCheckLimit() => ++Count > MaxRetries;
     }
 
     private async Task<ReadResult> TryReadDataAsync(IStreams.InputStream inputStream, byte[] buffer, RetryState retryState, CancellationToken cancellationToken)
@@ -200,7 +202,7 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
             return data.Length switch
             {
                 0 when retryState.IncrementAndCheckLimit() => 
-                    new(null, true, "No data received after max retries") { Connected = false },
+                    new ReadResult(null, true, "No data received after max retries") { Connected = false },
                 
                 0 => await HandleWaitForMoreDataAsync(retryState, cancellationToken),
                 
@@ -230,14 +232,14 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
             this.DataAvailable = false;
             this.Connected = false;
             
-            if (_buffer.Length > 0)
+            if (this.buffer.Length > 0)
             {
-                var remainingData = _buffer.ToArray();
-                _buffer.SetLength(0);
+                var remainingData = this.buffer.ToArray();
+                this.buffer.SetLength(0);
                 return new ReadResult(remainingData, true, $"Stream error: {e.Value}. Processing remaining {remainingData.Length} bytes before disconnecting");
             }
             
-            return new(null, true, $"Stream error: {e.Value}");
+            return new ReadResult(null, true, $"Stream error: {e.Value}");
         }
         catch (Exception ex)
         {
@@ -266,7 +268,7 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
     }
 
     private static IPv4Bytes GetIpTuple(IPAddress ip) => ip.GetAddressBytes() is [var a, var b, var c, var d]
-        ? new(a, b, c, d)
+        ? new IPv4Bytes(a, b, c, d)
         : throw new ArgumentException("Only IPv4 addresses are supported.");
 
     private readonly record struct ReadResult(byte[]? Data, bool ShouldBreak, string? ErrorMessage)
