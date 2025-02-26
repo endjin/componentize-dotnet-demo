@@ -1,46 +1,52 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Reactive.Linq;
 
+namespace ConsoleHttpRequestRx;
+
 public static class WasiMainWrapper
 {
+    private static readonly string[] UserAgentHeaders = ["dotnet", "WASI"];
+
     public static async Task<int> MainAsync(string[] args)
     {
-        using HttpClient client = new();
-        client.DefaultRequestHeaders.Accept.Clear();
-        client.DefaultRequestHeaders.Add("User-Agent", "dotnet WASI");
-        
-        string url = $"https://www.random.org/integers/?num=1&min=40&max=42&col=1&base=10&format=plain&rnd=new";
+        try
+        {
+            using HttpClient client = new();
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Add("User-Agent", UserAgentHeaders);
 
-        var observable = Observable.Range(0, 5)
-            .SelectMany(_ => Observable.FromAsync(() => client.GetStringAsync(url)))
-            .Select(response => int.Parse(response.Trim()));
+            const string url = "https://www.random.org/integers/?num=1&min=40&max=42&col=1&base=10&format=plain&rnd=new";
 
-        var tcs = new TaskCompletionSource<bool>();
+            var observable = Observable.Range(0, 5)
+                .SelectMany(async _ => await client.GetStringAsync(url))
+                .Select(static response => int.Parse(response.Trim()));
 
-        observable.Subscribe(
-            number => {
-                if (number == 42)
+            var tcs = new TaskCompletionSource<bool>();
+
+            observable.Subscribe(
+                onNext: static number => Console.WriteLine(
+                    number == 42 
+                        ? "The Answer to the Ultimate Question of Life, the Universe, and Everything is 42"
+                        : $"Received: {number}"),
+                onError: ex => 
                 {
-                    Console.WriteLine("The Answer to the Ultimate Question of Life, the Universe, and Everything is 42");
-                }
-                else
+                    Console.WriteLine($"Error at {DateTimeOffset.UtcNow}: {ex.Message}");
+                    tcs.SetResult(false);
+                },
+                onCompleted: () => 
                 {
-                    Console.WriteLine($"Received: {number}");
-                }
-            },
-            ex => {
-                Console.WriteLine($"Error: {ex.Message}");
-                tcs.SetResult(false);
-            },
-            () => {
-                Console.WriteLine("Completed fetching random numbers");
-                tcs.SetResult(true);
-            }
-        );
+                    Console.WriteLine("Completed fetching random numbers");
+                    tcs.SetResult(true);
+                });
 
-        await tcs.Task;
-        
-        return 0;
+            await tcs.Task;
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Fatal error: {ex.Message}");
+            return 1;
+        }
     }
 
     public static int Main(string[] args)
