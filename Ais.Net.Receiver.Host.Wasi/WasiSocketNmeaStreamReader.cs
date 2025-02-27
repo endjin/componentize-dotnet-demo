@@ -2,15 +2,6 @@
 using Ais.Net.Receiver.Host.Wasi.Logging;
 using Ais.Net.Receiver.Receiver;
 
-﻿using Ais.Net.Receiver.Receiver;
-
-using ImportsWorld;
-using ImportsWorld.wit.imports.wasi.io.v0_2_1;
-using ImportsWorld.wit.imports.wasi.sockets.v0_2_1;
-
-using System.Buffers;
-using System.Net;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Ais.Net.Receiver.Host.Wasi;
