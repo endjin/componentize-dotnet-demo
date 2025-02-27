@@ -39,6 +39,22 @@ public static class Program
             logger.Error($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Error Message: {error.Exception.Message}");
             logger.Error($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Bad Line: {error.Line}");
             logger.Error($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Stack Trace: {error.Exception.StackTrace}");
+
+        INmeaReceiver receiver = new NetworkStreamNmeaReceiver(new WasiSocketNmeaStreamReader(), host: "153.44.253.27", port: 5631, retryAttemptLimit: 100, retryPeriodicity: TimeSpan.Parse("00:00:00:00.500"));
+       
+        ReceiverHost receiverHost = new (receiver);
+
+        receiverHost.Messages.Subscribe(message => 
+        {
+            Console.WriteLine($"Received message: {message}");
+        });
+
+        receiverHost.Errors.Subscribe(error =>
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Error received: {error.Exception.Message}");
+            Console.WriteLine($"Bad line: {error.Line}");
+            Console.ResetColor();
         });
 
         IObservable<IGroupedObservable<uint, IAisMessage>> byVessel = receiverHost.Messages.GroupBy(m => m.Mmsi);
@@ -64,7 +80,22 @@ public static class Program
         await receiverHost.StartAsync(cts.Token);
         
         logger.Debug($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] AIS receiver started successfully");
-       
+          
+        vesselNavigationWithNameStream.Subscribe(navigationWithName =>
+        {
+            (uint mmsi, IVesselNavigation navigation, IVesselName name, ShipType shipType) = navigationWithName;
+
+            Console.WriteLine($"MMSI: {mmsi}, Name: {name.VesselName}, Lat: {navigation.Position?.Latitude}, Lon: {navigation.Position?.Longitude}, COG: {navigation.CourseOverGround}, ShipType: {shipType}");
+        });
+
+        CancellationTokenSource cts = new();
+
+        Console.WriteLine("Start the receiver");
+        
+        await receiverHost.StartAsync(cts.Token);
+        
+        Console.WriteLine("Receiver started");
+
         return 0;
     }
 
