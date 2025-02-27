@@ -11,7 +11,7 @@ public static class Program
 {
     public static async Task<int> MainAsync(string[] args)
     {
-        LogLevel logLevel = LogLevel.Info;
+        LogLevel logLevel = LogLevel.Debug;
 
         ConsoleLogger logger = new() { MinimumLevel = logLevel };
 
