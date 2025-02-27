@@ -11,7 +11,7 @@ public static class Program
 {
     public static async Task<int> MainAsync(string[] args)
     {
-        LogLevel logLevel = LogLevel.Debug;
+        LogLevel logLevel = LogLevel.Info;
 
         ConsoleLogger logger = new() { MinimumLevel = logLevel };
 
@@ -28,15 +28,15 @@ public static class Program
         ReceiverHost receiverHost = new(receiver);
 
         receiverHost.Messages.Subscribe(message =>
-            logger.Debug($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Message Type: {message.GetType().Name}, Raw: {message}")
+             logger.Debug($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Message Type: {message.GetType().Name}, Raw: {message}")
         );
 
         receiverHost.Errors.Subscribe(error =>
         {
-            logger.Error($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Error Type: {error.Exception.GetType().Name}");
-            logger.Error($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Error Message: {error.Exception.Message}");
-            logger.Error($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Bad Line: {error.Line}");
-            logger.Error($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Stack Trace: {error.Exception.StackTrace}");
+            logger.Debug($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Error Type: {error.Exception.GetType().Name}");
+            logger.Debug($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Error Message: {error.Exception.Message}");
+            logger.Debug($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Bad Line: {error.Line}");
+            logger.Debug($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Stack Trace: {error.Exception.StackTrace}");
         });
        
         IObservable<IGroupedObservable<uint, IAisMessage>> byVessel = receiverHost.Messages.GroupBy(m => m.Mmsi);
@@ -51,11 +51,19 @@ public static class Program
             from vesselLocationAndName in vesselLocationsWithNames
             select (mmsi: perVesselMessages.Key, vesselLocationAndName.navigation, vesselLocationAndName.name, vesselLocationAndName.shipType.ShipType);
 
-        vesselNavigationWithNameStream.Subscribe(navigationWithName =>
-        {
-            (uint mmsi, IVesselNavigation navigation, IVesselName name, ShipType shipType) = navigationWithName;
-            logger.Info($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Vessel Update: MMSI={mmsi}, Name={name.VesselName}, Pos=({navigation.Position?.Latitude},{navigation.Position?.Longitude}), Course={navigation.CourseOverGround}, Type={shipType}");
-        });
+        vesselNavigationWithNameStream.Subscribe(
+            navigationWithName =>
+            {
+                (uint mmsi, IVesselNavigation navigation, IVesselName name, ShipType shipType) = navigationWithName;
+                logger.Info($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Vessel Update: MMSI={mmsi}, Name={name.VesselName.Replace("@", string.Empty).Trim()}, Pos=({navigation.Position?.Latitude},{navigation.Position?.Longitude}), Course={navigation.CourseOverGround}, Type={shipType}");
+            },
+            error =>
+            {
+                // Lots of the data received is not valid, so we don't want to log this as an error
+                logger.Debug($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Vessel Stream Error: {error.GetType().Name}");
+                logger.Debug($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Error Message: {error.Message}");
+                logger.Debug($"[{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff}] Stack Trace: {error.StackTrace}");
+            });
 
         using CancellationTokenSource cts = new();
 
