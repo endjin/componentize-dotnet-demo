@@ -35,8 +35,17 @@ Restore complete (0.4s)
   hello succeeded (76.9s) → bin\Debug\net9.0\wasi-wasm\publish\
 
 Build succeeded in 79.7s
+```
 
-PS:> wasmtime bin\Debug\net9.0\wasi-wasm\native\hello.wasm
+To run `hello.wasm`:
+
+```bash
+wasmtime bin\Debug\net9.0\wasi-wasm\native\hello.wasm
+```
+
+And you should see:
+
+```bash
 Hello, World!
 ```
 
@@ -51,14 +60,23 @@ Restore complete (0.4s)
   hello succeeded (76.9s) → bin\Debug\net9.0\wasi-wasm\publish\
 
 Build succeeded in 79.7s
-
-PS:> wasmtime serve -S cli  .\bin\Debug\net9.0\wasi-wasm\native\wasi-http-server.wasm --addr 127.0.0.1:3000 
 ```
 
-In another terminal
+To run `wasi-http-server.wasm` you need to specify Wasmtime server it using the CLI capability:
 
 ```bash
-PS:> Invoke-RestMethod http://127.0.0.1:3000/   
+wasmtime serve -S cli  .\bin\Debug\net9.0\wasi-wasm\native\wasi-http-server.wasm --addr 127.0.0.1:3000 
+```
+
+In another terminal run
+
+```bash
+Invoke-RestMethod http://127.0.0.1:3000/   
+```
+
+You should see:
+
+```bash
 Hello, World!
 ```
 
@@ -79,7 +97,6 @@ To see the WIT Components in the WASM file, run:
 
 ```bash
 wasm-tools component wit .\dist\console.wasm
-
 ```
 
 <details><summary><b>Show WebAssembly Interface Types (WIT) from the console WASM component.</b></summary>
@@ -563,7 +580,7 @@ package wasi:http@0.2.0 {
 ```
 </details>
 
-To run, the console, you need to specify Wasmtime to use the the HTTP Interface when running the module:
+To run `console.wasm` you need to specify Wasmtime to use the the HTTP Interface when running the module:
 
 ```bash
 wasmtime run -S http .\dist\console.wasm
@@ -582,7 +599,7 @@ Restore complete (0.4s)
 Build succeeded in 6.3s
 ```
 
-To run, the console, you need to specify Wasmtime to use the the HTTP Interface when running the module:
+To run `console.wasm`, you need to specify Wasmtime to use the the HTTP Interface when running the module:
 
 ```bash
 wasmtime run -S http .\dist\console.wasm
@@ -601,7 +618,7 @@ Restore complete (0.4s)
 Build succeeded in 4.6s
 ```
 
-To run, the console, you need to use Wasmtime's security features to enable the required network capabilities:
+To run the `wasi-sockets.wasm`, you need to use Wasmtime's security features to enable the required network capabilities:
 
 ```bash
 wasmtime -S inherit-network=y .\dist\wasi-sockets.wasm
@@ -634,7 +651,7 @@ Restore complete (1.0s)
 Build succeeded in 16.0s
 ```
 
-To run, the console, you need to use Wasmtime's security features to enable the required network capabilities:
+To run `Ais.Net.Receiver.Host.Wasi.wasm` you need to use Wasmtime's security features to enable the required network capabilities:
 
 ```bash
 wasmtime -S inherit-network=y .\dist\Ais.Net.Receiver.Host.Wasi.wasm
