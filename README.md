@@ -1,6 +1,6 @@
 # componentize-dotnet-demo
 
-Exploring componentize-dotnet via various examples from [James Sturtevant](https://github.com/jsturtevant) and [Eric Gregory](https://github.com/ericgregory).
+Exploring componentize-dotnet via various examples from [James Sturtevant](https://github.com/jsturtevant) and [Eric Gregory](https://github.com/ericgregory), and exploring the use of existing .NET libraries such as [Reactive Extensions for .NET](https://github.com/dotnet/reactive) (Rx .NET) and [Ais.Net](https://github.com/ais-dotnet)
 
 ## Background Reading
 
