@@ -626,16 +626,13 @@ wasmtime -S inherit-network=y .\dist\wasi-sockets.wasm
 
 ## Ais.Net.Receiver.Host.Wasi demo
 
-This demo showcases `WasiSocketNmeaStreamReader`, a WebAssembly System Interface (WASI) implementation that:
+This demo showcases how to take an existing, mature .NET Application, and providing an alternative, custom WASI based implementation of the TCP connectivity subsystem, so the application can run as a WASM app with working TCP connectivity. 
 
-- Implements the `INmeaStreamReader` interface for AIS data processing
-- Serves as a WebAssembly-compatible replacement for the standard `TcpClientNmeaStreamReader` from the [Ais.Net.Receiver](https://github.com/ais-dotnet/Ais.Net.Receiver) library
-- Connects to the Norwegian Coastal Administration's TCP endpoint to receive maritime vessel tracking data
-- Processes raw AIS AIVDM/AIVDO sentences (standardized maritime vessel tracking messages)
+We create `WasiSocketNmeaStreamReader`, a WASI-based implementation of `INmeaStreamReader` that closely mimics the .NET based `TcpClientNmeaStreamReader` from the [Ais.Net.Receiver](https://github.com/ais-dotnet/Ais.Net.Receiver) library. It uses the WASI sockets API to connect to the Norwegian Coastal Administration's TCP endpoint to receive maritime vessel tracking data, and processes raw AIS AIVDM/AIVDO sentences (standardized maritime vessel tracking messages).
 
 Technical Benefits:
 
-- Allows AIS data processing in WebAssembly environments
+- Allows AIS data (GPS for Marine Vessels) processing in WebAssembly environments
 - Demonstrates how network-dependent .NET libraries can be adapted for WASI
 - Shows practical use of the WASI sockets API with real-world data sources
 - The data stream covers vessel movements approximately 40-60 nautical miles from the Norwegian coastline, collected from over 50 coastal base stations.
