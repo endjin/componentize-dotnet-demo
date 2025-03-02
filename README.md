@@ -623,6 +623,8 @@ Technical Benefits:
 - Shows practical use of the WASI sockets API with real-world data sources
 - The data stream covers vessel movements approximately 40-60 nautical miles from the Norwegian coastline, collected from over 50 coastal base stations.
 
+The Data ingested by the AIS.Net.Receiver is licensed under the [Norwegian license for public data (NLOD)](https://data.norge.no/nlod/en/2.0)
+
 ```bash
 PS:> cd .\Ais.Net.Receiver.Host.Wasi\
 PS:>dotnet build
