@@ -671,5 +671,5 @@ curl https://wasmtime.dev/install.sh -sSf | bash
 Run the WASM module:
 
 ```bash
- wasmtime -S inherit-network=y Ais.Net.Receiver.Host.Wasi.wasm
+wasmtime -S inherit-network=y Ais.Net.Receiver.Host.Wasi.wasm
 ```
