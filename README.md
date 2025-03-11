@@ -653,3 +653,23 @@ To run `Ais.Net.Receiver.Host.Wasi.wasm` you need to use Wasmtime's security fea
 ```bash
 wasmtime -S inherit-network=y .\dist\Ais.Net.Receiver.Host.Wasi.wasm
 ```
+
+### Run on a Raspberry Pi
+
+Copy the output to your Pi:
+
+```bash
+scp .\dist\Ais.Net.Receiver.Host.Wasi.wasm pi@pi:~\   
+```
+
+SSH into your Pi, and install Wasmtime:
+
+```bash
+curl https://wasmtime.dev/install.sh -sSf | bash
+```
+
+Run the WASM module:
+
+```bash
+ wasmtime -S inherit-network=y Ais.Net.Receiver.Host.Wasi.wasm
+```
