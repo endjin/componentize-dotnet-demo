@@ -2,7 +2,7 @@
 
 Exploring componentize-dotnet via various examples from [James Sturtevant](https://github.com/jsturtevant) and [Eric Gregory](https://github.com/ericgregory), and exploring the use of existing .NET libraries such as [Reactive Extensions for .NET](https://github.com/dotnet/reactive) (Rx .NET) and [Ais.Net](https://github.com/ais-dotnet)
 
-> As of .NET 9.0.3 The WASI-EXPERIMENTAL workload is not supported
+> As of .NET 9.0.3 The WASI-EXPERIMENTAL workload is [not supported](https://github.com/dotnet/runtime/pull/108877)
 
 ## Background Reading
 
