@@ -1,4 +1,5 @@
 ﻿using Ais.Net.Models.Abstractions;
+using Ais.Net.Receiver.Host.Wasi.IO;
 using Ais.Net.Receiver.Host.Wasi.Logging;
 using Ais.Net.Receiver.Receiver;
 
@@ -46,8 +47,7 @@ public static class Program
             let vesselNavigationUpdates = perVesselMessages.OfType<IVesselNavigation>()
             let vesselNames = perVesselMessages.OfType<IVesselName>()
             let shipTypes = perVesselMessages.OfType<IShipType>()
-            let vesselLocationsWithNames = 
-                vesselNavigationUpdates.CombineLatest(vesselNames, shipTypes, (navigation, name, shipType) => (navigation, name, shipType))
+            let vesselLocationsWithNames = vesselNavigationUpdates.CombineLatest(vesselNames, shipTypes, (navigation, name, shipType) => (navigation, name, shipType))
             from vesselLocationAndName in vesselLocationsWithNames
             select (mmsi: perVesselMessages.Key, vesselLocationAndName.navigation, vesselLocationAndName.name, vesselLocationAndName.shipType.ShipType);
 

@@ -36,17 +36,26 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
         this.logger.Info($"Connecting to AIS source: {host}:{port}");
         
         this.tcpClient = new WasiTcpClient(logger);
-        await this.tcpClient.ConnectAsync(host, port, cancellationToken);
-        
-        this.stream = this.tcpClient.GetStream();
-        if (this.stream == null)
+
+        try
         {
-            throw new InvalidOperationException("Failed to get network stream");
+            await this.tcpClient.ConnectAsync(host, port, cancellationToken);
+            this.stream = this.tcpClient.GetStream();
+            if (this.stream == null)
+            {
+                throw new InvalidOperationException("Failed to get network stream");
+            }
+            this.reader = new WasiStreamReader(this.stream.InputStream, logger);
+            this.logger.Info("Connected successfully to AIS source");
         }
-        
-        this.reader = new WasiStreamReader(stream.InputStream, logger);
-        
-        this.logger.Info("Connected successfully to AIS source");
+        catch (Exception)
+        {
+            // If connection fails, clean up resources
+            await this.DisposeAsync();
+            throw;
+        }
+
+
     }
 
     /// <summary>
@@ -54,20 +63,9 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
     /// </summary>
     public async Task<string?> ReadLineAsync(CancellationToken cancellationToken)
     {
-        if (this.reader is null)
-        {
-            return null;
-        }
-
-        try 
-        {
-            return await this.reader.ReadLineAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            this.logger.Error($"Error reading from NMEA stream: {ex.Message}");
-            throw;
-        }
+        return this.reader is not null
+            ? await this.reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)
+            : null;
     }
 
     /// <summary>
@@ -75,24 +73,11 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
     /// </summary>
     public ValueTask DisposeAsync()
     {
-        if (this.reader != null)
-        {
-            this.reader.Dispose();
-            this.reader = null;
-        }
+        reader?.Dispose();
+        stream?.Dispose();
+        tcpClient?.Dispose();
 
-        if (stream != null)
-        {
-            this.stream.Dispose();
-            this.stream = null;
-        }
-
-        if (this.tcpClient != null)
-        {
-            this.tcpClient.Dispose();
-            this.tcpClient = null;
-        }
-
+        GC.SuppressFinalize(this);
         return ValueTask.CompletedTask;
     }
 }

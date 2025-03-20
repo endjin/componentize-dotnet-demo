@@ -88,5 +88,6 @@ public class WasiTcpClient : IDisposable
             streams.Value.Output?.Dispose();
             streams = null;
         }
+        GC.SuppressFinalize(this);
     }
 }
