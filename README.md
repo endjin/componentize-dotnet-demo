@@ -3,6 +3,7 @@
 Exploring componentize-dotnet via various examples from [James Sturtevant](https://github.com/jsturtevant) and [Eric Gregory](https://github.com/ericgregory), and exploring the use of existing .NET libraries such as [Reactive Extensions for .NET](https://github.com/dotnet/reactive) (Rx .NET) and [Ais.Net](https://github.com/ais-dotnet)
 
 > As of .NET 9.0.3 The WASI-EXPERIMENTAL workload is [not supported](https://github.com/dotnet/runtime/pull/108877)
+> Upgrade to .NET 10 Preview 2 to run these demos.
 
 ## Background Reading
 
@@ -15,7 +16,7 @@ Exploring componentize-dotnet via various examples from [James Sturtevant](https
 
 ## Pre-requisites
 
-- [Install .NET 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+- [Install .NET 10.0 Preview 2](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 - Wasmtime - `winget install BytecodeAlliance.Wasmtime`
 - Install [Rust](https://www.rust-lang.org/) - `winget install Rustlang.Rustup `
 - Install [cargo binstall](https://github.com/cargo-bins/cargo-binstall) - `Set-ExecutionPolicy Unrestricted -Scope Process; iex (iwr "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.ps1").Content`
@@ -34,7 +35,7 @@ Restore complete (29.5s)
 Build succeeded in 29.6s
 PS:> dotnet build
 Restore complete (0.4s)
-  hello succeeded (76.9s) → bin\Debug\net9.0\wasi-wasm\publish\
+  hello succeeded (76.9s) → bin\Debug\net10.0\wasi-wasm\publish\
 
 Build succeeded in 79.7s
 ```
@@ -42,7 +43,7 @@ Build succeeded in 79.7s
 To run `hello.wasm`:
 
 ```bash
-wasmtime bin\Debug\net9.0\wasi-wasm\native\hello.wasm
+wasmtime bin\Debug\net10.0\wasi-wasm\native\hello.wasm
 ```
 
 And you should see:
@@ -59,7 +60,7 @@ Shows how reference a WebAssembly Interface Type (WIT) artifact in an OCI regist
 PS:> cd wasi-http-server
 PS:> dotnet build
 Restore complete (0.4s)
-  hello succeeded (76.9s) → bin\Debug\net9.0\wasi-wasm\publish\
+  hello succeeded (76.9s) → bin\Debug\net10.0\wasi-wasm\publish\
 
 Build succeeded in 79.7s
 ```
@@ -67,7 +68,7 @@ Build succeeded in 79.7s
 To run `wasi-http-server.wasm` you need to specify Wasmtime server it using the CLI capability:
 
 ```bash
-wasmtime serve -S cli  .\bin\Debug\net9.0\wasi-wasm\native\wasi-http-server.wasm --addr 127.0.0.1:3000 
+wasmtime serve -S cli  .\bin\Debug\net10.0\wasi-wasm\native\wasi-http-server.wasm --addr 127.0.0.1:3000 
 ```
 
 In another terminal run
@@ -90,7 +91,7 @@ Shows how to make an HTTP request while running in a WASI environment.
 PS:> cd console-http-request
 PS:> dotnet build
 Restore complete (0.4s)
-  console succeeded (3.5s) → bin\Debug\net9.0\wasi-wasm\publish\
+  console succeeded (3.5s) → bin\Debug\net10.0\wasi-wasm\publish\
 
 Build succeeded in 6.3s
 ```
@@ -596,7 +597,7 @@ Shows how to use Reactive Extensions for .NET to several make an HTTP requests w
 PS:> cd console-http-request-rx
 PS:> dotnet build
 Restore complete (0.4s)
-  console succeeded (3.5s) → bin\Debug\net9.0\wasi-wasm\publish\
+  console succeeded (3.5s) → bin\Debug\net10.0\wasi-wasm\publish\
 
 Build succeeded in 6.3s
 ```
@@ -615,7 +616,7 @@ Shows how to make a HTTP request using WASI sockets module.
 PS:> cd .\wasi-sockets\
 PS:> dotnet build
 Restore complete (0.4s)
-  wasi-sockets succeeded (2.7s) → bin\Debug\net9.0\wasi-wasm\publish\
+  wasi-sockets succeeded (2.7s) → bin\Debug\net10.0\wasi-wasm\publish\
 
 Build succeeded in 4.6s
 ```
@@ -645,7 +646,7 @@ The Data ingested by the AIS.Net.Receiver is licensed under the [Norwegian licen
 PS:> cd .\Ais.Net.Receiver.Host.Wasi\
 PS:>dotnet build
 Restore complete (1.0s)
-  Ais.Net.Receiver.Host.Wasi succeeded (9.2s) → bin\Debug\net9.0\wasi-wasm\publish\
+  Ais.Net.Receiver.Host.Wasi succeeded (9.2s) → bin\Debug\net10.0\wasi-wasm\publish\
 
 Build succeeded in 16.0s
 ```
