@@ -16,8 +16,9 @@ Exploring componentize-dotnet via various examples from [James Sturtevant](https
 
 ## Pre-requisites
 
-- [Install .NET 10.0 Preview 2](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
-- Wasmtime - `winget install BytecodeAlliance.Wasmtime`
+- [Install .NET 10.0 Preview 3](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
+- Run `dotnet workload update`
+- Install Wasmtime - `winget install BytecodeAlliance.Wasmtime`
 - Install [Rust](https://www.rust-lang.org/) - `winget install Rustlang.Rustup `
 - Install [cargo binstall](https://github.com/cargo-bins/cargo-binstall) - `Set-ExecutionPolicy Unrestricted -Scope Process; iex (iwr "https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.ps1").Content`
 - Install [WebAssembly Compositions (WAC)](https://github.com/bytecodealliance/wac) CLI - `cargo binstall wac-cli`
