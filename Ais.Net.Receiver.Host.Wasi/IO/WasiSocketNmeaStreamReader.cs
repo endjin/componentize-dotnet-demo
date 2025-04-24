@@ -21,24 +21,37 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
     /// <summary>
     /// Gets a value indicating whether data is available to read
     /// </summary>
-    public bool DataAvailable => stream?.DataAvailable ?? false;
+    public bool DataAvailable
+    {
+        get
+        {
+            logger?.Debug($"WasiSocketNmeaStreamReader:DataAvailable:{this.stream?.DataAvailable}");
+            return this.stream?.DataAvailable ?? false;
+        }
+    }
 
     /// <summary>
     /// Gets a value indicating whether the reader is connected
     /// </summary>
-    public bool Connected => tcpClient?.Connected ?? false;
+    public bool Connected
+    {
+        get
+        {
+            logger?.Debug($"WasiSocketNmeaStreamReader:Connected:{this.tcpClient?.Connected}");
+            return this.tcpClient?.Connected ?? false;
+        }
+    }
 
     /// <summary>
     /// Connects to the specified host and port
     /// </summary>
     public async Task ConnectAsync(string host, int port, CancellationToken cancellationToken)
     {
-        this.logger.Info($"Connecting to AIS source: {host}:{port}");
-        
-        this.tcpClient = new WasiTcpClient(logger);
+        this.logger.Debug($"Connecting to AIS source: {host}:{port}");
 
         try
         {
+            this.tcpClient = new WasiTcpClient(logger);
             await this.tcpClient.ConnectAsync(host, port, cancellationToken);
             this.stream = this.tcpClient.GetStream();
             if (this.stream == null)
@@ -48,14 +61,13 @@ public class WasiSocketNmeaStreamReader : INmeaStreamReader
             this.reader = new WasiStreamReader(this.stream.InputStream, logger);
             this.logger.Info("Connected successfully to AIS source");
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            this.logger.Error($"Connection failed: {ex.Message}");
             // If connection fails, clean up resources
             await this.DisposeAsync();
             throw;
         }
-
-
     }
 
     /// <summary>

@@ -12,6 +12,7 @@ namespace Ais.Net.Receiver.Host.Wasi.IO;
 public class WasiTcpClient : IDisposable
 {
     private readonly ILogger logger;
+    private ITcp.TcpSocket? tcpSocket;
     private (IStreams.InputStream Input, IStreams.OutputStream Output)? streams;
 
     /// <summary>
@@ -22,10 +23,38 @@ public class WasiTcpClient : IDisposable
         this.logger = logger;
     }
 
-    public bool Connected => this.streams.HasValue;
-    
-    public WasiNetworkStream? GetStream() => 
-        this.streams.HasValue ? new WasiNetworkStream(streams.Value.Input) : null;
+    public bool Connected
+    {
+        get
+        {
+            try
+            {
+                // Try a non-blocking read of 0 bytes
+                byte[]? data = this.streams?.Input.Read(0);
+                logger?.Debug($"WasiTcpClient:Connected:True: {data?.Length} bytes available");
+                return true; // If we get here, data is available
+            }
+            catch (WitException)
+            {
+                logger?.Error("Error while Connected.");
+                return false; // If we get an exception, no data is available
+            }
+        }
+    }
+
+    public WasiNetworkStream? GetStream() 
+    {
+        if (this.streams.HasValue)
+        {
+            logger.Info("Creating network stream");
+            
+            return new WasiNetworkStream(this.streams.Value.Input, this.logger);
+        }
+
+        logger.Error("Failed to create network stream");
+        
+        return null;
+    }
 
     public async Task ConnectAsync(string host, int port, CancellationToken cancellationToken)
     {
@@ -50,7 +79,7 @@ public class WasiTcpClient : IDisposable
             INetwork.Network network = InstanceNetworkInterop.InstanceNetwork();
             
             // Create socket
-            ITcp.TcpSocket tcpSocket = TcpCreateSocketInterop.CreateTcpSocket(INetwork.IpAddressFamily.IPV4);
+            this.tcpSocket = TcpCreateSocketInterop.CreateTcpSocket(INetwork.IpAddressFamily.IPV4);
             
             // Connect
             tcpSocket.StartConnect(network, remoteAddress);
@@ -60,7 +89,7 @@ public class WasiTcpClient : IDisposable
             {
                 try
                 {
-                    streams = tcpSocket.FinishConnect();
+                    this.streams = tcpSocket.FinishConnect();
                     logger.Info("Connection established");
                     return;
                 }
@@ -71,7 +100,7 @@ public class WasiTcpClient : IDisposable
                 }
             }
             
-            throw new OperationCanceledException("Connection attempt was canceled");
+            throw new OperationCanceledException("Connection attempt was cancelled");
         }
         catch (Exception ex)
         {
